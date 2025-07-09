@@ -14,6 +14,9 @@ import {
   View,
 } from 'react-native';
 
+import {TestIds, useInterstitialAd} from '@react-native-admob/admob';
+import LottieView from 'lottie-react-native';
+
 const windowWidth = Dimensions.get('window').width;
 
 // Create a Cell component for rendering individual cells
@@ -40,6 +43,8 @@ const PlayWithFriends = () => {
   const [secondPlayerName, setSecondPlayerName] = useState('Player 2');
   const [markers, setMarkers] = useState(Array(9).fill(null));
 
+  const [gameCounter, setGameCounter] = useState(0);
+
   const [gameStarted, setGameStarted] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -48,6 +53,18 @@ const PlayWithFriends = () => {
 
   const [gameEnded, setGameEnded] = useState(false);
   const [winnerScoreUpdated, setWinnerScoreUpdated] = useState(false);
+
+  // Video Ads
+  const interstitalAdID = __DEV__
+    ? TestIds.INTERSTITIAL
+    : 'ca-app-pub-8287135114525889/6995580074';
+
+  const {adLoaded, show, load} = useInterstitialAd(interstitalAdID);
+
+  useEffect(() => {
+    // Load the ad initially
+    load();
+  }, [load]);
 
   const markPosition = position => {
     if (!markers[position]) {
@@ -144,125 +161,169 @@ const PlayWithFriends = () => {
     setWinnerModalVisible(false);
     setGameEnded(false);
     setWinnerScoreUpdated(false);
+    handleGameCounter();
+  };
+
+  //For Video Ads
+  useEffect(() => {
+    if (gameCounter > 0 && gameCounter % 5 === 0) {
+      if (adLoaded) {
+        show();
+      } else {
+        load(); // Ensure the ad is loaded
+      }
+    }
+  }, [gameCounter, adLoaded, show, load]);
+
+  const handleGameCounter = () => {
+    setGameCounter(gameCounter + 1);
+    if ((gameCounter + 1) % 5 === 0) {
+      load(); // Load the next ad after showing the current one
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* PlayName Taken modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Enter Player Names</Text>
-            <TextInput
-              style={styles.inputPlayerName1}
-              placeholder="Player 1 Name"
-              onChangeText={text => setFirstPlayerName(text)}
-              value={firstPlayerName}
-            />
-            <TextInput
-              style={styles.inputPlayerName2}
-              placeholder="Player 2 Name"
-              onChangeText={text => setSecondPlayerName(text)}
-              value={secondPlayerName}
-            />
-            <Button
-              title="Start Game"
-              onPress={handleStartGame}
-              color={'#e21e57'}
-              style={styles.startGameButton}
-            />
+    <>
+      <View style={styles.container}>
+        {/* PlayName Taken modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Enter Player Names</Text>
+              <TextInput
+                style={styles.inputPlayerName1}
+                placeholder="Player 1 Name"
+                onChangeText={text => setFirstPlayerName(text)}
+                value={firstPlayerName}
+              />
+              <TextInput
+                style={styles.inputPlayerName2}
+                placeholder="Player 2 Name"
+                onChangeText={text => setSecondPlayerName(text)}
+                value={secondPlayerName}
+              />
+              <Button
+                title="Start Game"
+                onPress={handleStartGame}
+                color={'#e21e57'}
+                style={styles.startGameButton}
+              />
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* winner delcare Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={winnerModalVisible}
-        onRequestClose={() => setWinnerModalVisible(false)}>
-        <View style={styles.winnerModalContainer}>
-          <View style={styles.winnerModalContent}>
-            <Text style={styles.winnerModalTitle}>
-              {winner
-                ? winner === 'X'
-                  ? `${firstPlayerName} Won`
-                  : `${secondPlayerName} Won`
-                : "It's a draw!"}
-            </Text>
-            <Button
-              title="Play Again"
-              onPress={handleRestartGame}
-              color="#e21e57"
-              style={styles.playAgainButton}
-            />
+        {/* winner delcare Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={winnerModalVisible}
+          onRequestClose={() => setWinnerModalVisible(false)}>
+          <View style={styles.winnerModalContainer}>
+            {winnerModalVisible && (winner === 'X' || winner === 'O') && (
+              <View
+                style={{
+                  width: 300,
+                  height: 300,
+                  position: 'absolute',
+                  bottom:'40%'
+                }}>
+                <LottieView
+                  source={require('../assets/confetti.json')}
+                  autoPlay
+                  loop
+                  style={styles.animation}
+                />
+              </View>
+            )}
+            <View style={styles.winnerModalContent}>
+              <Text style={styles.winnerModalTitle}>
+                {winner
+                  ? winner === 'X'
+                    ? `${firstPlayerName} Won`
+                    : `${secondPlayerName} Won`
+                  : "It's a draw!"}
+              </Text>
+              <Button
+                title="Play Again"
+                onPress={handleRestartGame}
+                color="#e21e57"
+                style={styles.playAgainButton}
+              />
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      <ImageBackground
-        source={require('../assets/play-background.jpg')}
-        resizeMode="cover"
-        style={styles.imgeBackground}>
-        <View style={styles.playersContainer}>
-          <View
-            style={[
-              styles.playerInfo,
-              activePlayer === 'X' && styles.activePlayerStyle,
-            ]}>
-            <Image
-              source={require('../assets/cross.png')}
-              style={styles.playIcon}
-            />
-            <Text style={styles.playerName}>
-              {
-                firstPlayerName.length > 8
-                  ? firstPlayerName.slice(0, 8) + '...' // If length > 8, truncate and add '...'
-                  : firstPlayerName // If length <= 8, display the original name
-              }
-            </Text>
-            <Text style={styles.playerScore}>{firstPlayerScore}</Text>
+        <ImageBackground
+          source={require('../assets/a.webp')}
+          resizeMode="cover"
+          style={styles.imgeBackground}>
+          <View style={styles.playersContainer}>
+            <View
+              style={[
+                styles.playerInfo,
+                activePlayer === 'X' && styles.activePlayerStyle,
+              ]}>
+              <Image
+                source={require('../assets/cross.png')}
+                style={styles.playIcon}
+              />
+              <Text style={styles.playerName}>
+                {
+                  firstPlayerName.length > 8
+                    ? firstPlayerName.slice(0, 8) + '...' // If length > 8, truncate and add '...'
+                    : firstPlayerName // If length <= 8, display the original name
+                }
+              </Text>
+              <Text style={styles.playerScore}>{firstPlayerScore}</Text>
+            </View>
+            <View
+              style={[
+                styles.playerInfo,
+                activePlayer === 'O' && styles.activePlayerStyle,
+              ]}>
+              <Image
+                source={require('../assets/zero.png')}
+                style={styles.playIcon}
+              />
+              <Text style={styles.playerName}>
+                {secondPlayerName.length > 8
+                  ? secondPlayerName.slice(0, 8) + '...'
+                  : secondPlayerName}
+              </Text>
+              <Text style={styles.playerScore}>{secondPlayerScore}</Text>
+            </View>
           </View>
-          <View
-            style={[
-              styles.playerInfo,
-              activePlayer === 'O' && styles.activePlayerStyle,
-            ]}>
-            <Image
-              source={require('../assets/zero.png')}
-              style={styles.playIcon}
-            />
-            <Text style={styles.playerName}>
-              {secondPlayerName.length > 8
-                ? secondPlayerName.slice(0, 8) + '...'
-                : secondPlayerName}
-            </Text>
-            <Text style={styles.playerScore}>{secondPlayerScore}</Text>
-          </View>
-        </View>
 
-        <View style={styles.mainContainer}>{renderCells()}</View>
-        <TouchableOpacity onPress={resetMarkers} style={styles.buttonContainer}>
-          <Text style={styles.button}>Restart</Text>
-        </TouchableOpacity>
-      </ImageBackground>
-      {/* ... */}
-    </View>
+          <View style={styles.mainContainer}>{renderCells()}</View>
+          <TouchableOpacity
+            onPress={resetMarkers}
+            style={styles.buttonContainer}>
+            <Text style={styles.button}>Restart</Text>
+          </TouchableOpacity>
+        </ImageBackground>
+        {/* ... */}
+      </View>
+    </>
   );
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
+  animation: {
+    flex: 1,
+  },
   container: {
     flex: 1,
+    position: 'relative',
   },
   imgeBackground: {
     flex: 1,
     filter: 'brightness(100px)',
   },
+
   playersContainer: {
     display: 'flex',
     justifyContent: 'space-around',
@@ -276,7 +337,7 @@ const styles = StyleSheet.create({
   },
   playerInfo: {
     padding: 5,
-    margin: 18,
+    margin: 25,
     width: 140,
     display: 'flex',
     alignItems: 'center',
@@ -318,7 +379,7 @@ const styles = StyleSheet.create({
   },
   button: {
     paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingVertical: 8,
     color: '#fff',
     backgroundColor: '#0080df',
     fontSize: 20,
@@ -343,6 +404,7 @@ const styles = StyleSheet.create({
   },
   inputPlayerName1: {
     borderBottomColor: '#0080df',
+    color: '#fff',
     borderBottomWidth: 3,
     padding: 3,
     marginBottom: 10,
@@ -350,6 +412,7 @@ const styles = StyleSheet.create({
   },
   inputPlayerName2: {
     borderBottomColor: '#e21e57',
+    color: '#fff',
     borderBottomWidth: 3,
     padding: 3,
     marginBottom: 50,
@@ -366,7 +429,20 @@ const styles = StyleSheet.create({
     paddingVertical: 50,
     borderRadius: 15,
   },
-  winnerModalTitle: {fontSize: 20, color: '#fff', marginBottom: 30},
+  winnerModalTitle: {
+    fontSize: 20,
+    color: '#fff',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  lottie: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    pointerEvents: 'none',
+  },
 });
-
 export default PlayWithFriends;

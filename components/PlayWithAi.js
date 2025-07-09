@@ -2,19 +2,18 @@
 import React, {useState, useEffect} from 'react';
 import {
   Button,
-  Dimensions,
   Image,
   ImageBackground,
   Modal,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-
-const windowWidth = Dimensions.get('window').width;
+import {styles} from './PlayWithFriends';
+import {TestIds, useInterstitialAd} from '@react-native-admob/admob';
+import LottieView from 'lottie-react-native';
 
 const Cell = ({marker, onPress}) => (
   <Pressable style={styles.all_cell} onPress={onPress}>
@@ -36,8 +35,9 @@ const PlayWithComputer = () => {
   const [firstPlayerScore, setFirstPlayerScore] = useState(0);
   const [secondPlayerScore, setSecondPlayerScore] = useState(0);
   const [firstPlayerName, setFirstPlayerName] = useState('You');
-  const [secondPlayerName, setSecondPlayerName] = useState('Computer');
+  const [secondPlayerName, setSecondPlayerName] = useState('AI');
   const [markers, setMarkers] = useState(Array(9).fill(null));
+  const [gameCounter, setGameCounter] = useState(0);
 
   const [gameStarted, setGameStarted] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -48,6 +48,18 @@ const PlayWithComputer = () => {
   const [gameEnded, setGameEnded] = useState(false);
   const [winnerScoreUpdated, setWinnerScoreUpdated] = useState(false);
   const [isSinglePlayer, setIsSinglePlayer] = useState(true);
+
+  // Video Ads
+  const interstitalAdID = __DEV__
+    ? TestIds.INTERSTITIAL
+    : 'ca-app-pub-8287135114525889/6995580074';
+
+  const {adLoaded, show, load} = useInterstitialAd(interstitalAdID);
+
+  useEffect(() => {
+    // Load the ad initially
+    load();
+  }, [load]);
 
   const markPosition = position => {
     if (!markers[position]) {
@@ -90,23 +102,104 @@ const PlayWithComputer = () => {
     return null;
   };
 
+  const findBestMove = (newMarkers, player) => {
+    const lines = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ];
+
+    // Check if the AI can win in the next move
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (
+        newMarkers[a] === player &&
+        newMarkers[a] === newMarkers[b] &&
+        !newMarkers[c]
+      )
+        return c;
+      if (
+        newMarkers[a] === player &&
+        newMarkers[a] === newMarkers[c] &&
+        !newMarkers[b]
+      )
+        return b;
+      if (
+        newMarkers[b] === player &&
+        newMarkers[b] === newMarkers[c] &&
+        !newMarkers[a]
+      )
+        return a;
+    }
+
+    // Check if the player could win on their next move, and block them
+    const opponent = player === 'O' ? 'X' : 'O';
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (
+        newMarkers[a] === opponent &&
+        newMarkers[a] === newMarkers[b] &&
+        !newMarkers[c]
+      )
+        return c;
+      if (
+        newMarkers[a] === opponent &&
+        newMarkers[a] === newMarkers[c] &&
+        !newMarkers[b]
+      )
+        return b;
+      if (
+        newMarkers[b] === opponent &&
+        newMarkers[b] === newMarkers[c] &&
+        !newMarkers[a]
+      )
+        return a;
+    }
+
+    // Otherwise, pick a random available cell
+    const emptyCells = newMarkers.reduce((acc, marker, index) => {
+      if (!marker) {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+
+    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+  };
+
   const makeComputerMove = () => {
     if (!gameEnded && isSinglePlayer && activePlayer === 'O') {
-      const emptyCells = markers.reduce((acc, marker, index) => {
-        if (!marker) {
-          acc.push(index);
-        }
-        return acc;
-      }, []);
-
-      const randomIndex = Math.floor(Math.random() * emptyCells.length);
-      const computerMove = emptyCells[randomIndex];
-
+      const bestMove = findBestMove(markers, 'O');
       setTimeout(() => {
-        markPosition(computerMove);
+        markPosition(bestMove);
       }, 0.1);
     }
   };
+
+
+  //For Easy level 👇👇
+  // const makeComputerMove = () => {
+  //   if (!gameEnded && isSinglePlayer && activePlayer === 'O') {
+  //     const emptyCells = markers.reduce((acc, marker, index) => {
+  //       if (!marker) {
+  //         acc.push(index);
+  //       }
+  //       return acc;
+  //     }, []);
+
+  //     const randomIndex = Math.floor(Math.random() * emptyCells.length);
+  //     const computerMove = emptyCells[randomIndex];
+
+  //     setTimeout(() => {
+  //       markPosition(computerMove);
+  //     }, 0.1);
+  //   }
+  // };
 
   useEffect(() => {
     makeComputerMove();
@@ -157,6 +250,7 @@ const PlayWithComputer = () => {
     setWinnerModalVisible(false);
     setGameEnded(false);
     setWinnerScoreUpdated(false);
+    handleGameCounter();
   };
 
   const renderCells = () => {
@@ -164,8 +258,27 @@ const PlayWithComputer = () => {
       <Cell key={index} marker={marker} onPress={() => markPosition(index)} />
     ));
   };
+
+  //For Video Ads
+  useEffect(() => {
+    if (gameCounter > 0 && gameCounter % 5 === 0) {
+      if (adLoaded) {
+        show();
+      } else {
+        load(); // Ensure the ad is loaded
+      }
+    }
+  }, [gameCounter, adLoaded, show, load]);
+
+  const handleGameCounter = () => {
+    setGameCounter(gameCounter + 1);
+    if ((gameCounter + 1) % 5 === 0) {
+      load(); // Load the next ad after showing the current one
+    }
+  };
   return (
     <View style={styles.container}>
+      {/* Take User Name  */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -197,6 +310,22 @@ const PlayWithComputer = () => {
         visible={winnerModalVisible}
         onRequestClose={() => setWinnerModalVisible(false)}>
         <View style={styles.winnerModalContainer}>
+          {winnerModalVisible && (winner === 'X' || winner === 'O') && (
+            <View
+              style={{
+                width: 300,
+                height: 300,
+                position: 'absolute',
+                bottom: '40%',
+              }}>
+              <LottieView
+                source={require('../assets/confetti.json')}
+                autoPlay
+                loop
+                style={styles.animation}
+              />
+            </View>
+          )}
           <View style={styles.winnerModalContent}>
             <Text style={styles.winnerModalTitle}>
               {winner === 'X' && `${firstPlayerName} Won`}
@@ -214,7 +343,7 @@ const PlayWithComputer = () => {
       </Modal>
 
       <ImageBackground
-        source={require('../assets/play-background.jpg')}
+        source={require('../assets/a.webp')}
         resizeMode="cover"
         style={styles.imgeBackground}>
         <View style={styles.playersContainer}>
@@ -256,113 +385,5 @@ const PlayWithComputer = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  imgeBackground: {
-    flex: 1,
-    filter: 'brightness(100px)',
-  },
-  playersContainer: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  playIcon: {
-    width: 50,
-    height: 50,
-    margin: 8,
-  },
-  playerInfo: {
-    padding: 5,
-    margin: 18,
-    width: 140,
-    display: 'flex',
-    alignItems: 'center',
-  },
-  activePlayerStyle: {
-    borderWidth: 3,
-    borderColor: '#fff',
-    borderRadius: 10,
-  },
-  playerName: {
-    fontSize: 20,
-    color: '#fff',
-    marginBottom: 10,
-  },
-  playerScore: {
-    fontSize: 20,
-    color: '#fff',
-  },
-  mainContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 20,
-  },
-  all_cell: {
-    width: windowWidth / 3.2,
-    height: windowWidth / 3.2,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderColor: '#fff',
-    borderWidth: 3,
-  },
-  buttonContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 25,
-  },
-  button: {
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    color: '#fff',
-    backgroundColor: '#0080df',
-    fontSize: 20,
-    borderRadius: 5,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  modalContent: {
-    backgroundColor: '#474745',
-    paddingHorizontal: 45,
-    paddingVertical: 30,
-    borderRadius: 15,
-  },
-  modalTitle: {
-    fontSize: 20,
-    color: '#fff',
-  },
-  inputPlayerName1: {
-    borderBottomColor: '#e21e57',
-    borderBottomWidth: 3,
-    padding: 3,
-    marginBottom: 30,
-    marginTop: 20,
-  },
-  winnerModalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  winnerModalContent: {
-    backgroundColor: '#474745',
-    paddingHorizontal: 55,
-    paddingVertical: 50,
-    borderRadius: 15,
-  },
-  winnerModalTitle: {fontSize: 20, color: '#fff', marginBottom: 30},
-});
 
 export default PlayWithComputer;

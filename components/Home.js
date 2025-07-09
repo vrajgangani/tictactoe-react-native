@@ -9,9 +9,11 @@ import {
   Image,
 } from 'react-native';
 /* colors: #0080df, #e21e57 */
+
 export default function Home({navigation}) {
   return (
     <>
+      
       <View style={styles.container}>
         <ImageBackground
           source={require('../assets/home-background.jpg')}
@@ -20,15 +22,15 @@ export default function Home({navigation}) {
           <View style={styles.secondContainer}>
             <View style={styles.playWithContainer}>
               <Image
-              source={require('../assets/computer.png')}
-              style={styles.computerImage}
-            />
+                source={require('../assets/computer.png')}
+                style={styles.computerImage}
+              />
               <TouchableOpacity
                 style={styles.buttonContainer}
                 onPress={() => {
                   navigation.navigate('AI');
                 }}>
-                <Text style={[styles.button, {backgroundColor: '#e21e57'}]}>
+                <Text style={[styles.button, styles.playWithAIButton]}>
                   PLAY WITH AI
                 </Text>
               </TouchableOpacity>
@@ -65,6 +67,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   imgeBackground: {
     flex: 1,
@@ -83,6 +86,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     borderRadius: 5,
   },
+  playWithAIButton: {
+    backgroundColor: '#e21e57',
+  },
   computerImage: {
     height: 200,
     width: 200,
@@ -93,5 +99,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 50,
+  },
+  bannerAdContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 5,
   },
 });
